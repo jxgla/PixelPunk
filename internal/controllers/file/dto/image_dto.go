@@ -190,7 +190,7 @@ func (d *InstantUploadDTO) GetValidationMessages() map[string]string {
 type GuestUploadDTO struct {
 	AccessLevel      string `form:"access_level" json:"access_level"`
 	Optimize         bool   `form:"optimize" json:"optimize"`
-	StorageDuration  string `form:"storage_duration" json:"storage_duration" binding:"required"`
+	StorageDuration  string `form:"storage_duration" json:"storage_duration" binding:"required,oneof=1h 3h"`
 	Fingerprint      string `form:"fingerprint" json:"fingerprint"`
 	Watermark        string `form:"watermark" json:"watermark"`
 	WatermarkEnabled bool   `form:"watermark_enabled" json:"watermark_enabled"`
@@ -202,6 +202,7 @@ func (d *GuestUploadDTO) GetValidationMessages() map[string]string {
 	return map[string]string{
 		"AccessLevel.oneof":        "访问级别必须是 public、private 或 protected",
 		"StorageDuration.required": "游客上传必须指定存储时长",
+		"StorageDuration.oneof":    "游客上传存储时长仅支持 1h 或 3h",
 		"WatermarkType.oneof":      "水印类型必须是 file",
 	}
 }

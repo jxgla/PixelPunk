@@ -16,6 +16,7 @@ func RegisterRoutes(r *gin.Engine) {
 	RegisterClientRoutes(r)
 
 	prefix := r.Group("/api")
+	prefix.Use(middleware.APIGlobalRateLimit())
 	version := prefix.Group("/v1")
 
 	RegisterSetupRoutes(version)
@@ -128,6 +129,7 @@ func RegisterRoutes(r *gin.Engine) {
 		fileIDGroup := r.Group("/f")
 		fileIDGroup.Use(middleware.FileInfoExtractorMiddleware())
 		fileIDGroup.Use(middleware.FileAccessControlMiddleware())
+		fileIDGroup.Use(middleware.DownloadRateLimit())
 		fileIDGroup.Use(middleware.BandwidthLimitMiddleware())
 		fileIDGroup.Use(middleware.BandwidthTrackingMiddleware())
 		fileIDGroup.GET("/:fileID", fileController.ServeFileByID)
@@ -136,6 +138,7 @@ func RegisterRoutes(r *gin.Engine) {
 		thumbGroup := r.Group("/t")
 		thumbGroup.Use(middleware.FileInfoExtractorMiddleware())
 		thumbGroup.Use(middleware.FileAccessControlMiddleware())
+		thumbGroup.Use(middleware.DownloadRateLimit())
 		thumbGroup.Use(middleware.BandwidthLimitMiddleware())
 		thumbGroup.Use(middleware.BandwidthTrackingMiddleware())
 		thumbGroup.GET("/:fileID", fileController.ServeThumbByID)
@@ -144,6 +147,7 @@ func RegisterRoutes(r *gin.Engine) {
 		shortLinkGroup := r.Group("/s")
 		shortLinkGroup.Use(middleware.FileInfoExtractorMiddleware())
 		shortLinkGroup.Use(middleware.FileAccessControlMiddleware())
+		shortLinkGroup.Use(middleware.DownloadRateLimit())
 		shortLinkGroup.Use(middleware.BandwidthLimitMiddleware())
 		shortLinkGroup.Use(middleware.BandwidthTrackingMiddleware())
 		shortLinkGroup.GET("/:shortURL", fileController.ServeFileByShortURL)
@@ -156,6 +160,7 @@ func RegisterRoutes(r *gin.Engine) {
 
 	apiUploadRoutes := r.Group("/api/v1/external")
 	apiUploadRoutes.Use(middleware.APIKeyAuthMiddleware())
+	apiUploadRoutes.Use(middleware.UploadRateLimit())
 	apiUploadRoutes.POST("/upload", fileController.UploadForApiKey)
 
 	// 随机图片API公开接口（不需要认证）

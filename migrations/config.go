@@ -92,7 +92,7 @@ var DefaultSettings = struct {
 		ContentDetectionEnabled:     true,
 		SensitiveContentHandling:    "mark_only",
 		AIAnalysisEnabled:           true,
-		UserAllowedStorageDurations: []string{"1h", "3d", "7d", "30d", "permanent"},
+		UserAllowedStorageDurations: []string{"3d", "7d", "30d", "permanent"},
 		UserDefaultStorageDuration:  "permanent",
 	},
 
@@ -104,8 +104,8 @@ var DefaultSettings = struct {
 		EnableGuestUpload:            true,
 		GuestDailyLimit:              10,
 		GuestDefaultAccessLevel:      "public",
-		GuestAllowedStorageDurations: []string{"3d", "7d", "30d"},
-		GuestDefaultStorageDuration:  "7d",
+		GuestAllowedStorageDurations: []string{"1h", "3h"},
+		GuestDefaultStorageDuration:  "3h",
 		GuestIPDailyLimit:            50,
 	},
 

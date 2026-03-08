@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,7 +17,6 @@ type JWTClaims struct {
 }
 
 const (
-	defaultJWTSecret    = "defaultSecretKey" // 默认密钥（只在无法获取设置时使用）
 	defaultExpiresHours = 24                 // 默认24小时
 )
 
@@ -27,8 +27,8 @@ func GetCurrentTimestamp() int64 {
 
 /* GenerateToken 生成JWT令牌 */
 func GenerateToken(userID uint, username string, role int, jwtSecret string, expiresHours int) (string, error) {
-	if jwtSecret == "" {
-		jwtSecret = defaultJWTSecret
+	if strings.TrimSpace(jwtSecret) == "" {
+		return "", fmt.Errorf("JWT密钥未配置")
 	}
 
 	if expiresHours <= 0 {
@@ -54,8 +54,8 @@ func GenerateToken(userID uint, username string, role int, jwtSecret string, exp
 
 /* ParseToken 解析JWT令牌 */
 func ParseToken(tokenString string, jwtSecret string) (*JWTClaims, error) {
-	if jwtSecret == "" {
-		jwtSecret = defaultJWTSecret
+	if strings.TrimSpace(jwtSecret) == "" {
+		return nil, fmt.Errorf("JWT密钥未配置")
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {

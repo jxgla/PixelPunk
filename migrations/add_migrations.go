@@ -15,6 +15,8 @@ type migrationTask struct {
 // 注册的迁移列表
 var registeredMigrations = []migrationTask{
 	{"add_system_settings", AddSystemSettings},
+	{"update_guest_storage_to_3h", UpdateGuestStorageTo3Hours},
+	{"update_user_storage_options_for_admin_usage", UpdateUserStorageOptionsForAdminUsage},
 }
 
 // RegisterAllMigrations 注册所有迁移函数

@@ -3,8 +3,11 @@ package ai
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"pixelpunk/pkg/logger"
 	"pixelpunk/pkg/utils"
+	"strings"
 	"sync"
 	"time"
 )
@@ -268,10 +271,47 @@ func RefreshDefaultClient() error {
 	return nil
 }
 
+func validatePublicImageURL(imageURL string) error {
+	u, err := url.Parse(strings.TrimSpace(imageURL))
+	if err != nil {
+		return fmt.Errorf("图片URL格式无效")
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("仅支持 http/https 协议")
+	}
+
+	hostname := strings.TrimSpace(u.Hostname())
+	if hostname == "" {
+		return fmt.Errorf("图片URL主机不能为空")
+	}
+
+	ip := net.ParseIP(hostname)
+	if ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("禁止访问私网或本地地址")
+		}
+	}
+
+	lowerHost := strings.ToLower(hostname)
+	if lowerHost == "localhost" || strings.HasSuffix(lowerHost, ".local") {
+		return fmt.Errorf("禁止访问本地主机地址")
+	}
+
+	return nil
+}
+
 // 兼容性函数 - 保持与现有代码的兼容性
 
 // AnalyzeImageByURL 通过URL分析文件 - 兼容现有 callOpenAI 函数
 func AnalyzeImageByURL(imageURL, prompt string) (*AIResponse, error) {
+	if err := validatePublicImageURL(imageURL); err != nil {
+		return &AIResponse{
+			Success: false,
+			ErrMsg:  err.Error(),
+		}, err
+	}
+
 	client := GetDefaultClient()
 
 	req := &FileAnalysisRequest{

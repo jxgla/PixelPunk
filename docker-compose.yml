@@ -8,6 +8,10 @@
 #
 # 注意：直接运行将使用默认数据库密码，生产环境请修改 docker-compose.yml 的环境变量
 
+# 安全建议：请先复制 `.env.example` 为 `.env` 并填写强随机密码后再启动
+#   cp .env.example .env
+#   docker compose --env-file .env up -d
+
 version: '3.8'
 
 services:
@@ -16,7 +20,7 @@ services:
     image: snine98/pixelpunk:latest
     container_name: pixelpunk
     ports:
-      - "${PORT:-9520}:9520"
+      - "127.0.0.1:${PORT:-9520}:9520"
     volumes:
       - ./configs/config.docker.yaml:/app/configs/config.yaml:ro
       - ${DATA_DIR:-./data}:/app/data
@@ -27,6 +31,15 @@ services:
       - DEPLOY_MODE=compose
       - CONFIG_PRESET=true
       - APP_PORT=9520
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - API_RATE_LIMIT_RPS=${API_RATE_LIMIT_RPS:-8}
+      - API_RATE_LIMIT_BURST=${API_RATE_LIMIT_BURST:-16}
+      - UPLOAD_RATE_LIMIT_RPS=${UPLOAD_RATE_LIMIT_RPS:-1}
+      - UPLOAD_RATE_LIMIT_BURST=${UPLOAD_RATE_LIMIT_BURST:-2}
+      - DOWNLOAD_RATE_LIMIT_RPS=${DOWNLOAD_RATE_LIMIT_RPS:-4}
+      - DOWNLOAD_RATE_LIMIT_BURST=${DOWNLOAD_RATE_LIMIT_BURST:-8}
+      - UPLOAD_PAUSE_THRESHOLD_GB=${UPLOAD_PAUSE_THRESHOLD_GB:-5}
+      - UPLOAD_ALLOW_ADMIN_ONLY_WHEN_THRESHOLD_REACHED=${UPLOAD_ALLOW_ADMIN_ONLY_WHEN_THRESHOLD_REACHED:-true}
     depends_on:
       mysql:
         condition: service_healthy
@@ -49,10 +62,10 @@ services:
     image: mysql:8.0
     container_name: pixelpunk-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root_password_change_me
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: pixelpunk
       MYSQL_USER: pixelpunk
-      MYSQL_PASSWORD: pixelpunk_pass
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       TZ: Asia/Shanghai
     # 端口不对外暴露，仅容器内部访问
     # ports:
@@ -67,7 +80,7 @@ services:
     networks:
       - pixelpunk-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "pixelpunk", "-ppixelpunk_pass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "pixelpunk", "-p${MYSQL_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,12 +112,13 @@ services:
       - ${REDIS_DATA_DIR:-./data/redis}:/data
     environment:
       - TZ=Asia/Shanghai
-    command: redis-server --appendonly yes
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     restart: unless-stopped
     networks:
       - pixelpunk-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5

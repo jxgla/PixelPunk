@@ -62,6 +62,12 @@ func Upload(c *gin.Context) {
 		}
 	}
 
+	resolvedDuration, err := filesvc.ResolveStorageDurationForUser(userID, req.StorageDuration)
+	if err != nil {
+		errors.HandleError(c, err)
+		return
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		errors.HandleError(c, errors.New(errors.CodeInvalidParameter, "文件上传失败: "+err.Error()))
@@ -90,7 +96,7 @@ func Upload(c *gin.Context) {
 		wmConfig = req.WatermarkConfig
 	}
 
-	fileInfo, err := filesvc.UploadFileWithWatermark(c, userID, file, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration, wmEnabled, wmConfig)
+	fileInfo, err := filesvc.UploadFileWithWatermark(c, userID, file, req.FolderID, req.AccessLevel, req.Optimize, resolvedDuration, wmEnabled, wmConfig)
 	if err != nil {
 		errors.HandleError(c, err)
 		return
@@ -115,6 +121,12 @@ func BatchUpload(c *gin.Context) {
 	userID := middleware.GetCurrentUserID(c)
 
 	req, err := common.ValidateRequest[dto.UploadFileDTO](c)
+	if err != nil {
+		errors.HandleError(c, err)
+		return
+	}
+
+	resolvedDuration, err := filesvc.ResolveStorageDurationForUser(userID, req.StorageDuration)
 	if err != nil {
 		errors.HandleError(c, err)
 		return
@@ -158,7 +170,7 @@ func BatchUpload(c *gin.Context) {
 		wmConfig = req.WatermarkConfig
 	}
 
-	result, err := filesvc.UploadFileBatchWithWatermark(c, userID, files, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration, wmEnabled, wmConfig)
+	result, err := filesvc.UploadFileBatchWithWatermark(c, userID, files, req.FolderID, req.AccessLevel, req.Optimize, resolvedDuration, wmEnabled, wmConfig)
 	if err != nil {
 		errors.HandleError(c, err)
 		return
@@ -200,6 +212,12 @@ func GuestUpload(c *gin.Context) {
 		return
 	}
 
+	resolvedDuration, err := filesvc.ResolveStorageDurationForUser(0, req.StorageDuration)
+	if err != nil {
+		errors.HandleError(c, err)
+		return
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		logger.Error("GuestUpload: 获取文件失败: %v", err)
@@ -226,7 +244,7 @@ func GuestUpload(c *gin.Context) {
 		wmConfig = req.WatermarkConfig
 	}
 
-	fileInfo, remainingCount, err := filesvc.GuestUploadWithWatermark(c, file, guestFolderID, req.AccessLevel, req.Optimize, req.StorageDuration, fingerprint, wmEnabled, wmConfig)
+	fileInfo, remainingCount, err := filesvc.GuestUploadWithWatermark(c, file, guestFolderID, req.AccessLevel, req.Optimize, resolvedDuration, fingerprint, wmEnabled, wmConfig)
 	if err != nil {
 		logger.Error("GuestUpload: 服务层处理失败: %v", err)
 		errors.HandleError(c, err)
@@ -344,7 +362,12 @@ func InstantUpload(c *gin.Context) {
 			return
 		}
 	}
-	result, err := filesvc.InstantUploadWithDuration(c, userID, req.MD5, req.FileName, req.FileSize, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration)
+	resolvedDuration, err := filesvc.ResolveStorageDurationForUser(userID, req.StorageDuration)
+	if err != nil {
+		errors.HandleError(c, err)
+		return
+	}
+	result, err := filesvc.InstantUploadWithDuration(c, userID, req.MD5, req.FileName, req.FileSize, req.FolderID, req.AccessLevel, req.Optimize, resolvedDuration)
 	if err != nil {
 		errors.HandleError(c, err)
 		return

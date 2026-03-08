@@ -14,11 +14,19 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # 配置
-REMOTE_USER="root"
-REMOTE_HOST="110.42.43.216"
-REMOTE_PORT="22"
-REMOTE_DIR="/pixelPunk/app"
+REMOTE_USER="${REMOTE_USER:-root}"
+REMOTE_HOST="${REMOTE_HOST:-}"
+REMOTE_PORT="${REMOTE_PORT:-22}"
+REMOTE_DIR="${REMOTE_DIR:-/pixelPunk/app}"
 LOCAL_BINARY="./pixelpunk-linux"
+
+if [ -z "$REMOTE_HOST" ]; then
+    echo -e "${RED}✗ 未设置 REMOTE_HOST，请通过环境变量传入目标服务器地址${NC}"
+    echo -e "${YELLOW}示例: REMOTE_HOST=your.vps.ip ./scripts/deploy/quick-deploy.sh${NC}"
+    exit 1
+fi
+
+SSH_OPTS="-o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new"
 
 # 检查本地二进制文件
 if [ ! -f "$LOCAL_BINARY" ]; then
@@ -57,7 +65,7 @@ fi
 
 echo ""
 echo -e "${BLUE}[1/5] 测试 SSH 连接...${NC}"
-if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "echo '连接成功'" > /dev/null 2>&1; then
+if ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "echo '连接成功'" > /dev/null 2>&1; then
     echo -e "${GREEN}✓ SSH 连接正常${NC}"
 else
     echo -e "${RED}✗ SSH 连接失败${NC}"
@@ -66,7 +74,7 @@ fi
 
 echo ""
 echo -e "${BLUE}[2/5] 停止远程服务...${NC}"
-ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
+ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
     cd ${REMOTE_DIR} && \
 
     # 尝试使用 service.sh 停止
@@ -93,7 +101,7 @@ ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} 
 
 echo ""
 echo -e "${BLUE}[3/5] 备份旧版本...${NC}"
-ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
+ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
     cd ${REMOTE_DIR} && \
     if [ -f pixelpunk ]; then
         cp pixelpunk pixelpunk.backup.\$(date +%Y%m%d_%H%M%S)
@@ -106,12 +114,12 @@ ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} 
 echo ""
 echo -e "${BLUE}[4/5] 上传新版本...${NC}"
 echo -e "${CYAN}上传中...${NC}"
-if scp -o StrictHostKeyChecking=no -P ${REMOTE_PORT} "$LOCAL_BINARY" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/pixelpunk; then
+if scp -o StrictHostKeyChecking=accept-new -P ${REMOTE_PORT} "$LOCAL_BINARY" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/pixelpunk; then
     echo -e "${GREEN}✓ 上传成功 ($(ls -lh $LOCAL_BINARY | awk '{print $5}'))${NC}"
 
     # 验证上传的文件
     echo -e "${CYAN}验证文件...${NC}"
-    ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
+    ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
         cd ${REMOTE_DIR} && \
         sync && \
         sleep 1 && \
@@ -130,7 +138,7 @@ fi
 
 echo ""
 echo -e "${BLUE}[5/5] 设置权限并启动服务...${NC}"
-ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
+ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
     cd ${REMOTE_DIR} && \
 
     # 设置执行权限
@@ -163,7 +171,7 @@ sleep 3
 
 # 检查服务状态
 echo -e "${BLUE}检查服务状态...${NC}"
-ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
+ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "
     cd ${REMOTE_DIR} && \
 
     if [ -f ./service.sh ]; then

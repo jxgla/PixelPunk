@@ -16,6 +16,7 @@ import (
 	"pixelpunk/internal/controllers/file/dto"
 	"pixelpunk/internal/models"
 	"pixelpunk/internal/services/setting"
+	"pixelpunk/pkg/common"
 	"pixelpunk/pkg/config"
 	"pixelpunk/pkg/database"
 	"pixelpunk/pkg/errors"
@@ -464,6 +465,19 @@ func processUploadedFile(userID uint, filePath string, session *models.UploadSes
 	header.Header.Set("Content-Type", session.MimeType)
 
 	ctx := CreateUploadContext(nil, userID, header, session.FolderID, session.AccessLevel, session.Optimize)
+
+	resolvedDuration, err := ResolveStorageDurationForUser(userID, "")
+	if err != nil {
+		return nil, err
+	}
+	ctx.StorageDuration = resolvedDuration
+	if ctx.StorageDuration != "" && ctx.StorageDuration != common.StorageDurationPermanent {
+		expiresAt := common.CalculateExpiryTime(ctx.StorageDuration)
+		ctx.ExpiresAt = &expiresAt
+	}
+	if err := EnforceUploadPoliciesForRequest(userID, ctx.StorageDuration); err != nil {
+		return nil, err
+	}
 
 	// 设置水印配置（如果有）
 	if session.WatermarkConfig != "" {

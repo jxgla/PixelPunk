@@ -268,11 +268,38 @@ docker pull snine98/pixelpunk:latest
 # Download docker-compose.yml
 curl -O https://download.pixelpunk.cc/docker/docker-compose.yml
 
+# Create env file from template
+cp .env.example .env
+
+# (Optional) Auto-generate strong passwords
+./scripts/deploy/init-env.sh
+
 # Start all services (includes MySQL + Qdrant + Redis)
 docker-compose up -d
 ```
 
 Visit `http://localhost:9520` to get started.
+
+### Security Notes for VPS / Personal Image Hosting
+
+- Keep real secrets only in local `.env` on VPS (never commit `.env`)
+- Expose only `80/443`; keep app port private (`127.0.0.1:9520`)
+- For Cloudflare Tunnel, set your real domain in `CORS_ALLOWED_ORIGINS`
+
+### Upload Policy Controls (Environment Variables)
+
+The following controls are supported in `.env`:
+
+- `UPLOAD_PAUSE_THRESHOLD_GB` (default: `5`)
+  - When total storage reaches this value, upload protection is triggered.
+- `UPLOAD_ALLOW_ADMIN_ONLY_WHEN_THRESHOLD_REACHED` (default: `true`)
+  - `true`: only `admin/super-admin` can upload after threshold is reached.
+  - `false`: all uploads are blocked after threshold is reached.
+
+Additional built-in policy:
+
+- Only `admin/super-admin` can use `permanent` storage.
+- Normal users are limited to max `30d` (default auto-resolved to `30d` when not provided).
 
 ---
 

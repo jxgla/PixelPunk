@@ -2,7 +2,10 @@ package common
 
 import (
 	"fmt"
+	"time"
 )
+
+const guestMaxStorageDuration = 3 * time.Hour
 
 // StorageSettings 存储设置结构体，避免循环导入
 type StorageSettings struct {
@@ -30,25 +33,29 @@ func (sc *StorageConfig) GetAllowedDurations(isGuest bool) []string {
 	var allowedDurations []string
 
 	if isGuest {
-		// 游客模式：使用guest配置（强制不超过7天）
+		// 游客模式：使用guest配置（强制不超过3小时）
 		if len(sc.settings.GuestAllowedStorageDurations) > 0 {
 			allowedDurations = sc.settings.GuestAllowedStorageDurations
 		} else {
-			// 备用默认选项（最多7天）
-			allowedDurations = []string{"3d", "7d"}
+			// 备用默认选项（最多3小时）
+			allowedDurations = []string{"1h", "3h"}
 		}
-		// 过滤 >7天或永久/非法的选项
+		// 过滤 >3小时或永久/非法的选项
 		filtered := make([]string, 0, len(allowedDurations))
 		for _, d := range allowedDurations {
 			if d == "permanent" {
 				continue
 			}
 			dur := ParseStorageDuration(d)
-			if dur > 0 && dur <= 7*24*60*60*1e9 { // 7天
+			if dur > 0 && dur <= guestMaxStorageDuration {
 				filtered = append(filtered, d)
 			}
 		}
-		allowedDurations = filtered
+		if len(filtered) == 0 {
+			allowedDurations = []string{"1h", "3h"}
+		} else {
+			allowedDurations = filtered
+		}
 	} else {
 		// 已登录用户：使用upload配置
 		if len(sc.settings.UserAllowedStorageDurations) > 0 {
@@ -83,7 +90,7 @@ func (sc *StorageConfig) GetDefaultDuration(isGuest bool) string {
 		if len(allowedDurations) > 0 {
 			return allowedDurations[0]
 		}
-		return "3d"
+		return "3h"
 	} else {
 		// 已登录用户：使用upload配置
 		if sc.settings.UserDefaultStorageDuration != "" {
@@ -100,6 +107,12 @@ func (sc *StorageConfig) ValidateStorageDuration(duration string, isGuest bool) 
 
 	for _, allowed := range allowedDurations {
 		if duration == allowed {
+			if isGuest {
+				dur := ParseStorageDuration(duration)
+				if dur <= 0 || dur > guestMaxStorageDuration {
+					return fmt.Errorf("游客上传存储时长最多3小时")
+				}
+			}
 			return nil
 		}
 	}
@@ -113,7 +126,7 @@ func (sc *StorageConfig) ValidateStorageDuration(duration string, isGuest bool) 
 	}
 
 	if isGuest {
-		return fmt.Errorf("存储时长必须是 %s（游客仅支持限时存储）", allowedStr)
+		return fmt.Errorf("存储时长必须是 %s（游客最多3小时）", allowedStr)
 	} else {
 		return fmt.Errorf("存储时长必须是 %s", allowedStr)
 	}
@@ -152,6 +165,7 @@ func (sc *StorageConfig) GetStorageDurationOptions(isGuest bool) []StorageOption
 	durationLabels := map[string]string{
 		"permanent": "🔒 永久",
 		"1h":        "⏰ 1小时",
+		"3h":        "⏰ 3小时",
 		"3d":        "⏰ 3天",
 		"7d":        "⏰ 7天",
 		"30d":       "⏰ 30天",
@@ -184,8 +198,8 @@ func (sc *StorageConfig) GetStorageDurationOptions(isGuest bool) []StorageOption
 // CreateDefaultStorageConfig 创建默认存储配置
 func CreateDefaultStorageConfig() *StorageConfig {
 	settings := &StorageSettings{
-		GuestAllowedStorageDurations: []string{"3d", "7d"},
-		GuestDefaultStorageDuration:  "3d",
+		GuestAllowedStorageDurations: []string{"1h", "3h"},
+		GuestDefaultStorageDuration:  "3h",
 		EnableGuestUpload:            true,
 		GuestDefaultAccessLevel:      "private",
 		UserAllowedStorageDurations:  []string{"3d", "7d", "30d"},

@@ -10,6 +10,7 @@ import (
 func RegisterChunkedUploadRoutes(r *gin.RouterGroup) {
 	chunked := r.Group("/chunked")
 	chunked.Use(middleware.RequireAuth()) // 需要认证
+	chunked.Use(middleware.UploadRateLimit())
 	{
 		chunked.POST("/init", fileController.InitChunkedUpload)
 

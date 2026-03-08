@@ -10,6 +10,7 @@ import (
 	"pixelpunk/internal/services/setting"
 	"pixelpunk/pkg/database"
 	"pixelpunk/pkg/errors"
+	"strings"
 )
 
 /* TemporaryLinkResult 生成临时链接的结果 */
@@ -50,13 +51,16 @@ func GenerateTemporaryLink(userID uint, fileID string, expireMinutes int) (*Temp
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	jwtSecret := "pixel_punk_jwt_secret_key"
+	jwtSecret := ""
 	if securitySettings, err := setting.GetSettingsByGroupAsMap("security"); err == nil {
 		if val, ok := securitySettings.Settings["jwt_secret"]; ok {
-			if secretStr, ok := val.(string); ok && secretStr != "" {
+			if secretStr, ok := val.(string); ok {
 				jwtSecret = secretStr
 			}
 		}
+	}
+	if strings.TrimSpace(jwtSecret) == "" {
+		return nil, errors.New(errors.CodeInternal, "安全配置缺失：jwt_secret 未设置")
 	}
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {

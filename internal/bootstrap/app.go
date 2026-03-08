@@ -85,6 +85,7 @@ func (app *App) initializeHTTPServer() error {
 
 func (app *App) configureMiddleware() {
 	app.Engine.Use(middlewareInternal.CORSMiddleware())
+	app.Engine.Use(middlewareInternal.SecurityHeadersMiddleware())
 	app.Engine.Use(gin.Recovery())
 	app.Engine.Use(errors.ErrorHandler())
 	app.Engine.SetTrustedProxies([]string{"127.0.0.1", "localhost"})
@@ -93,8 +94,12 @@ func (app *App) configureMiddleware() {
 func (app *App) Start() error {
 	appCfg := config.GetConfig().App
 	app.Server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", appCfg.Port),
-		Handler: app.Engine,
+		Addr:              fmt.Sprintf(":%d", appCfg.Port),
+		Handler:           app.Engine,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	logger.Info("🚀 启动HTTP服务器，地址: %s", app.Server.Addr)

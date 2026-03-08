@@ -12,7 +12,7 @@ func RegisterFileRoutes(r *gin.RouterGroup) {
 	guestGroup.GET("/list", fileController.GetRecommendedFileList)
 	guestGroup.GET("/random", fileController.GetRandomRecommendedFile)
 
-	guestGroup.POST("/upload", middleware.UploadConcurrencyLimit(), fileController.GuestUpload)
+	guestGroup.POST("/upload", middleware.UploadRateLimit(), middleware.UploadConcurrencyLimit(), fileController.GuestUpload)
 
 	guestGroup.POST("/check-duplicate", fileController.CheckDuplicate)
 	guestGroup.POST("/instant-upload", fileController.InstantUpload)
@@ -25,8 +25,8 @@ func RegisterFileRoutes(r *gin.RouterGroup) {
 	authGroup := r.Group("")
 	authGroup.Use(middleware.RequireAuth())
 
-	authGroup.POST("/upload", middleware.UploadConcurrencyLimit(), fileController.Upload)
-	authGroup.POST("/batch-upload", middleware.UploadConcurrencyLimit(), fileController.BatchUpload)
+	authGroup.POST("/upload", middleware.UploadRateLimit(), middleware.UploadConcurrencyLimit(), fileController.Upload)
+	authGroup.POST("/batch-upload", middleware.UploadRateLimit(), middleware.UploadConcurrencyLimit(), fileController.BatchUpload)
 
 	authGroup.POST("/check-duplicate", fileController.CheckDuplicate)
 	authGroup.POST("/instant-upload", fileController.InstantUpload)

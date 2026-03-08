@@ -22,6 +22,11 @@ import (
 	rasterx "github.com/srwiley/rasterx"
 )
 
+const (
+	maxThumbnailInputBytes = 64 * 1024 * 1024  // 64MB
+	maxThumbnailPixels     = 50 * 1000 * 1000 // 5000万像素
+)
+
 // Options 缩略图参数
 type Options struct {
 	Width    int
@@ -46,6 +51,9 @@ func Generate(input []byte, opts Options) (*Result, error) {
 	if len(input) == 0 {
 		return nil, fmt.Errorf("empty input")
 	}
+	if len(input) > maxThumbnailInputBytes {
+		return nil, fmt.Errorf("input too large")
+	}
 
 	// 优先尝试 SVG
 	if looksLikeSVG(input) {
@@ -67,6 +75,9 @@ func Generate(input []byte, opts Options) (*Result, error) {
 	file, _, err := image.Decode(bytes.NewReader(input))
 	if err != nil {
 		return nil, fmt.Errorf("decode image: %w", err)
+	}
+	if err := validateImageSize(file); err != nil {
+		return nil, err
 	}
 	return resizeAndEncode(file, opts)
 }
@@ -180,6 +191,9 @@ func resizeAndEncode(file image.Image, opts Options) (*Result, error) {
 }
 
 func resizeAndEncodeWithFormat(file image.Image, opts Options, forceFormat string) (*Result, error) {
+	if err := validateImageSize(file); err != nil {
+		return nil, err
+	}
 	ow, oh := file.Bounds().Dx(), file.Bounds().Dy()
 	tw, th := computeSize(ow, oh, opts)
 	var out image.Image
@@ -271,4 +285,17 @@ func imageHasAlpha(file image.Image) bool {
 		}
 	}
 	return false
+}
+
+func validateImageSize(file image.Image) error {
+	b := file.Bounds()
+	w := b.Dx()
+	h := b.Dy()
+	if w <= 0 || h <= 0 {
+		return fmt.Errorf("invalid image dimension")
+	}
+	if int64(w)*int64(h) > maxThumbnailPixels {
+		return fmt.Errorf("image too large: pixel count exceeds limit")
+	}
+	return nil
 }

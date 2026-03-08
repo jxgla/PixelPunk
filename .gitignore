@@ -75,7 +75,12 @@ configs/*.yaml
 .env
 .env.*
 !.env.example
-!web/.env
+!web/.env.example
+
+# Cloudflare Tunnel 本地凭据
+.cloudflared/
+cloudflared/
+cloudflared/*.json
 
 # 部署配置（敏感信息）
 deploy.conf

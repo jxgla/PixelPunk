@@ -9,6 +9,8 @@ import (
 
 // 存储时长常量
 const (
+	StorageDuration1Hour    = "1h"
+	StorageDuration3Hours   = "3h"
 	StorageDuration3Days     = "3d"
 	StorageDuration7Days     = "7d"
 	StorageDuration30Days    = "30d"
@@ -17,6 +19,8 @@ const (
 
 // 支持的存储时长选项
 var SupportedStorageDurations = map[string]bool{
+	StorageDuration1Hour:    true,
+	StorageDuration3Hours:   true,
 	StorageDuration3Days:     true,
 	StorageDuration7Days:     true,
 	StorageDuration30Days:    true,
@@ -25,13 +29,17 @@ var SupportedStorageDurations = map[string]bool{
 
 // GuestStorageDurations 游客可用的存储时长选项（最长30天）
 var GuestStorageDurations = map[string]bool{
-	StorageDuration3Days: true,
-	StorageDuration7Days: true,
+	StorageDuration1Hour:  true,
+	StorageDuration3Hours: true,
 }
 
 // ParseStorageDuration 解析存储时长字符串为时间间隔
 func ParseStorageDuration(duration string) time.Duration {
 	switch duration {
+	case StorageDuration1Hour:
+		return 1 * time.Hour
+	case StorageDuration3Hours:
+		return 3 * time.Hour
 	case StorageDuration3Days:
 		return 3 * 24 * time.Hour
 	case StorageDuration7Days:
@@ -129,7 +137,7 @@ func IsValidGuestStorageDuration(duration string) bool {
 }
 
 func GetMaxGuestStorageDuration() string {
-	return StorageDuration7Days
+	return StorageDuration3Hours
 }
 
 // CalculateExpiryTime 计算过期时间
@@ -221,6 +229,8 @@ func FormatRemainingTime(expiresAt *time.Time) string {
 
 func GetStorageOptions(isGuest bool) []StorageOption {
 	options := []StorageOption{
+		{Value: StorageDuration1Hour, Label: "1小时", Days: 0},
+		{Value: StorageDuration3Hours, Label: "3小时", Days: 0},
 		{Value: StorageDuration3Days, Label: "3天", Days: 3},
 		{Value: StorageDuration7Days, Label: "7天", Days: 7},
 		{Value: StorageDuration30Days, Label: "30天", Days: 30},
@@ -251,7 +261,7 @@ func ValidateStorageDuration(duration string, isGuest bool) error {
 	}
 
 	if isGuest && !IsValidGuestStorageDuration(duration) {
-		return fmt.Errorf("游客仅支持最多30天的存储时长")
+		return fmt.Errorf("游客仅支持1小时或3小时的存储时长")
 	}
 
 	return nil

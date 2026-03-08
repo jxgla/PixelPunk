@@ -9,6 +9,11 @@ import (
 	"github.com/disintegration/imaging"
 )
 
+const (
+	maxInputBytes  int64 = 64 * 1024 * 1024 // 64MB
+	maxImagePixels int64 = 50 * 1000 * 1000 // 5000万像素
+)
+
 // Options 压缩选项
 type Options struct {
 	MaxWidth  int
@@ -27,10 +32,15 @@ type Result struct {
 
 // CompressFile 基于尺寸与质量压缩（保持格式）
 func CompressFile(input io.Reader, options *Options) (*Result, error) {
-	data, err := io.ReadAll(input)
+	data, err := readLimited(input, maxInputBytes)
 	if err != nil {
 		return nil, err
 	}
+
+	if err := validateDecodedConfig(data); err != nil {
+		return nil, err
+	}
+
 	file, format, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
@@ -85,16 +95,26 @@ func CompressToTargetSize(reader io.Reader, targetSizeMB float64, options *Optio
 	if targetSizeMB <= 0 {
 		return nil, fmt.Errorf("invalid target size")
 	}
-	data, err := io.ReadAll(reader)
+	data, err := readLimited(reader, maxInputBytes)
 	if err != nil {
 		return nil, err
 	}
+	if err := validateDecodedConfig(data); err != nil {
+		return nil, err
+	}
+
+	maxWidth, maxHeight := 0, 0
+	if options != nil {
+		maxWidth = options.MaxWidth
+		maxHeight = options.MaxHeight
+	}
+
 	quality := 85
 	if options != nil && options.Quality > 0 {
 		quality = options.Quality
 	}
 	for q := quality; q >= 40; q -= 5 {
-		res, err := CompressFile(bytes.NewReader(data), &Options{MaxWidth: options.MaxWidth, MaxHeight: options.MaxHeight, Quality: q, Preserve: true})
+		res, err := CompressFile(bytes.NewReader(data), &Options{MaxWidth: maxWidth, MaxHeight: maxHeight, Quality: q, Preserve: true})
 		if err != nil {
 			return nil, err
 		}
@@ -103,9 +123,35 @@ func CompressToTargetSize(reader io.Reader, targetSizeMB float64, options *Optio
 			return &Result{Reader: bytes.NewReader(buf), Width: res.Width, Height: res.Height, Format: res.Format}, nil
 		}
 	}
-	res, err := CompressFile(bytes.NewReader(data), &Options{MaxWidth: options.MaxWidth, MaxHeight: options.MaxHeight, Quality: 60, Preserve: true})
+	res, err := CompressFile(bytes.NewReader(data), &Options{MaxWidth: maxWidth, MaxHeight: maxHeight, Quality: 60, Preserve: true})
 	if err != nil {
 		return nil, err
 	}
 	return res, nil
+}
+
+func readLimited(input io.Reader, limit int64) ([]byte, error) {
+	lr := &io.LimitedReader{R: input, N: limit + 1}
+	data, err := io.ReadAll(lr)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("input too large: max %d bytes", limit)
+	}
+	return data, nil
+}
+
+func validateDecodedConfig(data []byte) error {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("decode image config failed: %w", err)
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return fmt.Errorf("invalid image dimension")
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > maxImagePixels {
+		return fmt.Errorf("image too large: pixel count exceeds limit")
+	}
+	return nil
 }
